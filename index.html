@@ -306,6 +306,24 @@
             line-height: 1.5;
         }
         
+        #wallet-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1em;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid #8B4513;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        #validation-message {
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            color: #FFD700;
+            min-height: 20px;
+        }
+        
         #enter-button {
             background-color: #8B4513;
             color: #FFD700;
@@ -318,10 +336,17 @@
             font-weight: bold;
         }
         
-        #enter-button:hover {
+        #enter-button:hover:not(:disabled) {
             background-color: #A0522D;
             transform: scale(1.05);
             box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        
+        #enter-button:disabled {
+            background-color: #6b5045;
+            color: #cca752;
+            cursor: not-allowed;
+            opacity: 0.7;
         }
         
         #interaction-panel {
@@ -532,9 +557,11 @@
     <!-- Welcome Screen -->
     <div id="welcome-screen">
         <div id="welcome-content">
-            <h1>Village Shopkeeper</h1>
-            <p>Welcome to the village shop! Explore the medieval store, chat with the shopkeeper, and discover magical items and weapons.</p>
-            <button id="enter-button">Enter Shop</button>
+            <h1>Nebula - the Shopkeeper Scene</h1>
+            <p>Welcome to the Marketplace! Enter your wallet to continue.</p>
+            <input type="text" id="wallet-input" placeholder="ENS name (.eth) or Ethereum wallet address (0x...)" autocomplete="off">
+            <div id="validation-message"></div>
+            <button id="enter-button" disabled>Enter Marketplace</button>
         </div>
     </div>
 
@@ -609,8 +636,59 @@
             
             console.log('OrbitControls is available!');
             
+            // Global variable to store the wallet address or ENS name
+            let address = '';
+            
+            // Validate Ethereum address or ENS name
+            function validateInput(input) {
+                // Trim whitespace
+                const trimmedInput = input.trim();
+                
+                // Check if it's an ENS name (ends with .eth)
+                if (trimmedInput.toLowerCase().endsWith('.eth')) {
+                    // Basic ENS validation - must be at least 5 chars (.eth = 4 chars + at least 1 char for name)
+                    return trimmedInput.length >= 5;
+                }
+                
+                // Check if it's an Ethereum address
+                // Must start with 0x followed by 40 hex characters
+                const ethAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+                return ethAddressRegex.test(trimmedInput);
+            }
+            
+            // Setup validation for the wallet input
+            const walletInput = document.getElementById('wallet-input');
+            const enterButton = document.getElementById('enter-button');
+            const validationMessage = document.getElementById('validation-message');
+            
+            walletInput.addEventListener('input', function() {
+                const input = this.value;
+                const isValid = validateInput(input);
+                
+                enterButton.disabled = !isValid;
+                
+                if (input === '') {
+                    validationMessage.textContent = '';
+                } else if (isValid) {
+                    if (input.toLowerCase().endsWith('.eth')) {
+                        validationMessage.textContent = 'Valid ENS name';
+                        validationMessage.style.color = '#4CAF50';
+                    } else {
+                        validationMessage.textContent = 'Valid Ethereum address';
+                        validationMessage.style.color = '#4CAF50';
+                    }
+                } else {
+                    validationMessage.textContent = 'Please enter a valid ENS name or Ethereum address';
+                    validationMessage.style.color = '#F44336';
+                }
+            });
+            
             // Set up Enter button to start the scene when clicked
             document.getElementById('enter-button').addEventListener('click', function() {
+                // Store the validated address
+                address = walletInput.value.trim();
+                console.log('User entered address:', address);
+                
                 const welcomeScreen = document.getElementById('welcome-screen');
                 
                 // Add fade-out animation
@@ -622,13 +700,17 @@
                     welcomeScreen.style.display = 'none';
                     
                     // Now initialize the scene
-                    initializeScene();
+                    initializeScene(address);
                 }, 1000);
             });
         };
         
         // Main scene initialization function
-        function initializeScene() {
+        function initializeScene(userAddress) {
+            // Store the user's address for later use
+            const address = userAddress;
+            console.log('Initializing scene with address:', address);
+            
             // Hide loading message
             document.getElementById('loading').style.display = 'none';
             
@@ -1344,7 +1426,7 @@
                     // Show or hide chat based on proximity
                     if (isNearShopkeeper && !chatActive) {
                         // Only show speech bubble initially
-                        speechBubble.textContent = "Hello traveler! Come chat with me.";
+                        speechBubble.textContent = `Hello ${address.toLowerCase().endsWith('.eth') ? address.split('.')[0] : "traveler"}! Come chat with me.`;
                         speechBubble.classList.add('active');
                         
                         // Add a small delay before showing chat prompt
@@ -1395,7 +1477,12 @@
                 // Dialogue options for the shopkeeper
                 const dialogueTree = {
                     greeting: {
-                        shopkeeperMessage: "Greetings, traveler! What brings you to my humble shop today?",
+                        shopkeeperMessage: function(address) {
+                            const shortAddress = address.toLowerCase().endsWith('.eth') 
+                                ? address 
+                                : address.substring(0, 6) + '...' + address.substring(38);
+                            return `Greetings, ${shortAddress}! What brings you to my humble shop today?`;
+                        },
                         options: [
                             { text: "I'm looking for weapons.", nextStep: "weapons" },
                             { text: "Do you have any potions?", nextStep: "potions" },
@@ -1420,7 +1507,12 @@
                         ]
                     },
                     about: {
-                        shopkeeperMessage: "I've been a shopkeeper in this village for over 30 years. Before that, I was an adventurer like yourself, until I took an arrow to the knee.",
+                        shopkeeperMessage: function(address) {
+                            const shortAddress = address.toLowerCase().endsWith('.eth') 
+                                ? address 
+                                : address.substring(0, 6) + '...' + address.substring(38);
+                            return `I've been a shopkeeper in this village for over 30 years, ${shortAddress}. Before that, I was an adventurer like yourself, until I took an arrow to the knee.`;
+                        },
                         options: [
                             { text: "Tell me about your adventures.", nextStep: "adventures" },
                             { text: "How's business these days?", nextStep: "business" },
@@ -1469,7 +1561,12 @@
                         ]
                     },
                     buy_sword: {
-                        shopkeeperMessage: "A fine choice! This sword has served many heroes well. Use it wisely! *hands you the steel sword*",
+                        shopkeeperMessage: function(address) {
+                            const namePrefix = address.toLowerCase().endsWith('.eth') 
+                                ? address.split('.')[0] 
+                                : "brave hero";
+                            return `A fine choice, ${namePrefix}! This sword has served many heroes well. Use it wisely! *hands you the steel sword*`;
+                        },
                         options: [
                             { text: "Thank you! Do you have anything else to go with it?", nextStep: "accessories" },
                             { text: "Thanks! I'll be on my way now.", nextStep: "farewell" }
@@ -1483,7 +1580,12 @@
                         ]
                     },
                     farewell: {
-                        shopkeeperMessage: "Safe travels, adventurer! May your blade stay sharp and your wits sharper! Return any time.",
+                        shopkeeperMessage: function(address) {
+                            const namePrefix = address.toLowerCase().endsWith('.eth') 
+                                ? address.split('.')[0] 
+                                : "adventurer";
+                            return `Safe travels, ${namePrefix}! May your blade stay sharp and your wits sharper! Return any time.`;
+                        },
                         options: [
                             { text: "Goodbye, shopkeeper!", nextStep: "end_chat" }
                         ]
@@ -1516,12 +1618,20 @@
                     if (dialogue.shopkeeperMessage) {
                         const shopkeeperMsg = document.createElement('div');
                         shopkeeperMsg.className = 'chat-message shopkeeper-message';
-                        shopkeeperMsg.textContent = dialogue.shopkeeperMessage;
+                        
+                        // Check if shopkeeperMessage is a function that needs the address
+                        if (typeof dialogue.shopkeeperMessage === 'function') {
+                            shopkeeperMsg.textContent = dialogue.shopkeeperMessage(address);
+                        } else {
+                            shopkeeperMsg.textContent = dialogue.shopkeeperMessage;
+                        }
+                        
                         chatMessages.appendChild(shopkeeperMsg);
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                         
                         // Update speech bubble with the first part of the message
-                        const shortMessage = dialogue.shopkeeperMessage.split('.')[0] + '.';
+                        let message = shopkeeperMsg.textContent;
+                        const shortMessage = message.split('.')[0] + '.';
                         document.getElementById('speech-bubble').textContent = shortMessage;
                     }
                     
