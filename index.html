@@ -614,9 +614,9 @@
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 document.getElementById('container').appendChild(renderer.domElement);
                 
-                // Position camera to better view the shop and shopkeeper
-                camera.position.set(0, 8, 15);
-                camera.lookAt(5, 2, 5); // Look directly at the shop area
+                // Position camera to match the screenshot - more overhead view
+                camera.position.set(5, 1.7, 15);
+                camera.lookAt(5, 1.7, 5); // Looking straight at the shop from ground level
                 
                 // Add orbit controls
                 console.log('Setting up OrbitControls');
@@ -625,7 +625,7 @@
                 controls.dampingFactor = 0.25;
                 controls.maxPolarAngle = Math.PI / 2;
                 // Set target to the shop's position so orbit controls rotate around it
-                controls.target.set(5, 2, 5);
+                controls.target.set(5, 1.7, 5);
                 controls.update();
                 
                 // Setup lighting
