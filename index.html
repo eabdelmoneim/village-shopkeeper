@@ -266,6 +266,64 @@
             z-index: 10;
         }
         
+        /* Welcome Screen Styles */
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            transition: opacity 1s ease-in-out;
+        }
+        
+        #welcome-content {
+            text-align: center;
+            background-color: rgba(51, 25, 0, 0.9);
+            padding: 40px;
+            border-radius: 10px;
+            border: 3px solid #8B4513;
+            max-width: 600px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        #welcome-screen h1 {
+            color: #FFD700;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        #welcome-screen p {
+            color: #FFF;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        #enter-button {
+            background-color: #8B4513;
+            color: #FFD700;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        #enter-button:hover {
+            background-color: #A0522D;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        }
+        
         #interaction-panel {
             position: absolute;
             top: 50%;
@@ -471,6 +529,15 @@
     </style>
 </head>
 <body>
+    <!-- Welcome Screen -->
+    <div id="welcome-screen">
+        <div id="welcome-content">
+            <h1>Village Shopkeeper</h1>
+            <p>Welcome to the village shop! Explore the medieval store, chat with the shopkeeper, and discover magical items and weapons.</p>
+            <button id="enter-button">Enter Shop</button>
+        </div>
+    </div>
+
     <div id="container"></div>
     <div id="ui-container">
         <div id="interaction-panel" class="hidden">
@@ -541,8 +608,23 @@
             }
             
             console.log('OrbitControls is available!');
-            // Initialize the scene
-            initializeScene();
+            
+            // Set up Enter button to start the scene when clicked
+            document.getElementById('enter-button').addEventListener('click', function() {
+                const welcomeScreen = document.getElementById('welcome-screen');
+                
+                // Add fade-out animation
+                welcomeScreen.style.opacity = '0';
+                welcomeScreen.style.transition = 'opacity 1s ease-in-out';
+                
+                // Initialize the scene after the welcome screen fades out
+                setTimeout(function() {
+                    welcomeScreen.style.display = 'none';
+                    
+                    // Now initialize the scene
+                    initializeScene();
+                }, 1000);
+            });
         };
         
         // Main scene initialization function
@@ -778,6 +860,75 @@
                 rightSupport.position.set(3.5, 3.2, 2.5);
                 shopGroup.add(rightSupport);
                 
+                // Add hanging swords from the ceiling
+                // Create 3 swords hanging at different heights and positions
+                const hangingSwordPositions = [
+                    { x: -3.0, y: 2.8, z: 0.5 },  // Leftmost sword position
+                    { x: -2.0, y: 3.0, z: 0 },    // Middle sword position 
+                    { x: -1.0, y: 2.7, z: 0.5 }   // Closest to shopkeeper but still on left side
+                ];
+                
+                hangingSwordPositions.forEach((pos, index) => {
+                    // Create chain to hang the sword
+                    const chainGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.7, 8);
+                    const chainMaterial = createStandardMaterial({
+                        color: 0x333333,
+                        roughness: 0.7,
+                        metalness: 0.8
+                    });
+                    const chain = new THREE.Mesh(chainGeometry, chainMaterial);
+                    chain.position.set(pos.x, pos.y + 0.35, pos.z);
+                    shopGroup.add(chain);
+                    
+                    // Create the sword handle - now vertical with no gap to chain
+                    const handleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+                    const handleMaterial = createStandardMaterial({
+                        color: 0x8B4513,
+                        roughness: 0.7
+                    });
+                    const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+                    // Position handle directly at the end of the chain
+                    handle.position.set(pos.x, pos.y, pos.z);
+                    shopGroup.add(handle);
+                    
+                    // Create sword blade - perfectly vertical
+                    const bladeLength = 0.8 + (index * 0.2); // Different sized swords
+                    const bladeGeometry = new THREE.BoxGeometry(0.18, bladeLength, 0.05);
+                    const bladeMaterial = createStandardMaterial({
+                        color: 0xC0C0C0,
+                        roughness: 0.3,
+                        metalness: 0.7
+                    });
+                    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                    // Position blade below handle with no gap
+                    blade.position.set(pos.x, pos.y - (bladeLength/2) - 0.15, pos.z);
+                    // No random rotation - perfectly vertical
+                    shopGroup.add(blade);
+                    
+                    // Create sword guard - perfectly horizontal for vertical sword
+                    const guardGeometry = new THREE.BoxGeometry(0.35, 0.08, 0.08);
+                    const guardMaterial = createStandardMaterial({
+                        color: 0xDAA520, // Gold color
+                        roughness: 0.3,
+                        metalness: 0.8
+                    });
+                    const guard = new THREE.Mesh(guardGeometry, guardMaterial);
+                    guard.position.set(pos.x, pos.y - 0.15, pos.z);
+                    shopGroup.add(guard);
+                    
+                    // Add small hook connecting chain to sword
+                    const hookGeometry = new THREE.TorusGeometry(0.05, 0.01, 8, 16, Math.PI);
+                    const hookMaterial = createStandardMaterial({
+                        color: 0x333333,
+                        roughness: 0.5,
+                        metalness: 0.8
+                    });
+                    const hook = new THREE.Mesh(hookGeometry, hookMaterial);
+                    hook.position.set(pos.x, pos.y + 0.03, pos.z);
+                    hook.rotation.x = Math.PI / 2;
+                    shopGroup.add(hook);
+                });
+                
                 // Create shelves for potions
                 const shelfMaterial = createStandardMaterial({ 
                     color: 0x8B4513,
@@ -853,71 +1004,129 @@
                 
                 console.log('Creating shopkeeper at position:', shopkeeperGroup.position);
                 
-                // Create the head
-                const headGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+                // Create the head - more human-like with lighter skin
+                const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
                 const headMaterial = createStandardMaterial({
-                    color: 0xF5DEB3, // Skin tone
+                    color: 0xE0C8B0, // Lighter skin tone
                     roughness: 0.7
                 });
                 const head = new THREE.Mesh(headGeometry, headMaterial);
                 head.position.y = 1.8;
                 shopkeeperGroup.add(head);
                 
-                // Create the body/torso
-                const torsoGeometry = new THREE.CylinderGeometry(0.3, 0.4, 0.8, 8);
-                const torsoMaterial = createStandardMaterial({
-                    color: 0x8B4513, // Brown for clothing
-                    roughness: 0.8
+                // Add brown hair
+                const hairGeometry = new THREE.BoxGeometry(0.65, 0.2, 0.65);
+                const hairMaterial = createStandardMaterial({
+                    color: 0x5A3825, // Brown hair
+                    roughness: 0.9,
+                    metalness: 0.0
                 });
-                const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
-                torso.position.y = 1.3;
-                shopkeeperGroup.add(torso);
+                const hair = new THREE.Mesh(hairGeometry, hairMaterial);
+                hair.position.set(0, 2.1, 0); // Position on top of head
+                shopkeeperGroup.add(hair);
                 
-                // Create the beard (as seen in concept art)
-                const beardGeometry = new THREE.ConeGeometry(0.25, 0.4, 8);
-                const beardMaterial = createStandardMaterial({
-                    color: 0x4A412A, // Dark brown
-                    roughness: 1.0
-                });
-                const beard = new THREE.Mesh(beardGeometry, beardMaterial);
-                beard.position.set(0, 1.6, 0.15);
-                beard.rotation.x = Math.PI / 3; // Angle the beard
-                shopkeeperGroup.add(beard);
+                // Add side hair
+                const sideHairGeometry = new THREE.BoxGeometry(0.1, 0.4, 0.5);
+                const leftSideHair = new THREE.Mesh(sideHairGeometry, hairMaterial);
+                leftSideHair.position.set(-0.35, 1.9, 0);
+                shopkeeperGroup.add(leftSideHair);
                 
-                // Create eyes
-                const eyeGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const rightSideHair = new THREE.Mesh(sideHairGeometry, hairMaterial);
+                rightSideHair.position.set(0.35, 1.9, 0);
+                shopkeeperGroup.add(rightSideHair);
+                
+                // Add yellow eyes
+                const eyeGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.05);
                 const eyeMaterial = createStandardMaterial({
-                    color: 0x000000, // Black
-                    roughness: 0.5
+                    color: 0x49341C, // Dark brown eyes
+                    emissive: 0x49341C,
+                    emissiveIntensity: 0.1,
+                    roughness: 0.3
                 });
                 
                 // Left eye
                 const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                leftEye.position.set(-0.1, 1.85, 0.25);
+                leftEye.position.set(-0.15, 1.85, 0.31);
                 shopkeeperGroup.add(leftEye);
                 
                 // Right eye
                 const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-                rightEye.position.set(0.1, 1.85, 0.25);
+                rightEye.position.set(0.15, 1.85, 0.31);
                 shopkeeperGroup.add(rightEye);
                 
-                // Add arms to shopkeeper
-                const armGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.7, 8);
-                const armMaterial = createStandardMaterial({
-                    color: 0x8B4513, // Brown for clothing
-                    roughness: 0.8
+                // Create the mouth
+                const mouthGeometry = new THREE.BoxGeometry(0.2, 0.05, 0.05);
+                const mouthMaterial = createStandardMaterial({
+                    color: 0xA55C3D, // Reddish-brown
+                    roughness: 0.7
+                });
+                const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
+                mouth.position.set(0, 1.7, 0.31);
+                shopkeeperGroup.add(mouth);
+                
+                // Create body with white shirt 
+                // White shirt layer - main body
+                const shirtGeometry = new THREE.BoxGeometry(0.8, 0.9, 0.5);
+                const shirtMaterial = createStandardMaterial({
+                    color: 0xF0F0F0, // White/off-white
+                    roughness: 0.95, // Very high roughness
+                    metalness: 0.0,  // No metalness
+                    flatShading: true // Use flat shading
+                });
+                const shirt = new THREE.Mesh(shirtGeometry, shirtMaterial);
+                shirt.position.y = 1.3;
+                shopkeeperGroup.add(shirt);
+                
+                // Add a vest over the shirt - that won't flash
+                const vestGeometry = new THREE.BoxGeometry(0.85, 0.85, 0.55);
+                const vestMaterial = createStandardMaterial({
+                    color: 0x4A7044, // Forest green
+                    roughness: 1.0, // Maximum roughness (no specular highlights)
+                    metalness: 0.0, // No metalness
+                    flatShading: true // Flat shading for stable appearance
+                });
+                const vest = new THREE.Mesh(vestGeometry, vestMaterial);
+                vest.position.y = 1.3;
+                vest.position.z = -0.02; // Slightly behind to show white shirt at front
+                shopkeeperGroup.add(vest);
+                
+                // Create cross-strap across chest (X shape)
+                const strapGeometry = new THREE.BoxGeometry(0.1, 0.7, 0.05);
+                const strapMaterial = createStandardMaterial({
+                    color: 0x7E4A30, // Leather brown
+                    roughness: 1.0,
+                    metalness: 0.0
                 });
                 
-                // Left arm
+                // First strap (diagonal \)
+                const strap1 = new THREE.Mesh(strapGeometry, strapMaterial);
+                strap1.position.set(0, 1.3, 0.28);
+                strap1.rotation.z = Math.PI / 4; // 45 degrees
+                shopkeeperGroup.add(strap1);
+                
+                // Second strap (diagonal /)
+                const strap2 = new THREE.Mesh(strapGeometry, strapMaterial);
+                strap2.position.set(0, 1.3, 0.28);
+                strap2.rotation.z = -Math.PI / 4; // -45 degrees
+                shopkeeperGroup.add(strap2);
+                
+                // Add arms to shopkeeper
+                const armGeometry = new THREE.BoxGeometry(0.3, 0.7, 0.3);
+                
+                // Left arm - white sleeve
+                const armMaterial = createStandardMaterial({
+                    color: 0xF0F0F0, // White
+                    roughness: 0.95,
+                    metalness: 0.0,
+                    flatShading: true
+                });
                 const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-                leftArm.position.set(-0.4, 1.3, 0);
-                leftArm.rotation.z = -0.3;
+                leftArm.position.set(-0.6, 1.3, 0);
                 shopkeeperGroup.add(leftArm);
                 
-                // Right arm
+                // Right arm - white sleeve
                 const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-                rightArm.position.set(0.4, 1.3, 0);
-                rightArm.rotation.z = 0.3;
+                rightArm.position.set(0.6, 1.3, 0);
                 shopkeeperGroup.add(rightArm);
                 
                 // Set up shadow casting for all parts
