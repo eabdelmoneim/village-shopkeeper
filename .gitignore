@@ -1,0 +1,59 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+package-lock.json
+yarn.lock
+
+# Build and distribution directories
+dist/
+build/
+.cache/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.pem
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+._*
+Thumbs.db
+.project
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Debug logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Server files
+.vercel
+.netlify
+.firebase/
+.firebaserc
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Three.js specific
+textures/compressed/
+models/compressed/
+
+# Local development server files
+.serve/ 

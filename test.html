@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Test - Village Shopkeeper (Simplified)</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h2>Village Shopkeeper (Simplified)</h2>
+        <p>Mouse: Click and drag to rotate camera</p>
+        <p>Scroll: Zoom in/out</p>
+        <p>Click on the shop counter to interact</p>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.174.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // Create scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+        
+        // Create camera
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 10);
+        
+        // Create renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        // Add controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+        
+        // Create floor/ground
+        const floorGeometry = new THREE.PlaneGeometry(20, 20);
+        const floorMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xaaaaaa, 
+            roughness: 0.8, 
+            metalness: 0.2 
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+        
+        // Create a simple shop counter
+        const counterGeometry = new THREE.BoxGeometry(5, 1, 2);
+        const counterMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513, 
+            roughness: 0.7 
+        });
+        const counter = new THREE.Mesh(counterGeometry, counterMaterial);
+        counter.position.set(0, 0.5, -2);
+        counter.castShadow = true;
+        counter.receiveShadow = true;
+        counter.userData = { type: 'counter', clickable: true };
+        scene.add(counter);
+        
+        // Create a sword
+        const swordGroup = new THREE.Group();
+        
+        // Blade
+        const bladeGeometry = new THREE.BoxGeometry(0.2, 2, 0.1);
+        const bladeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xc0c0c0, 
+            metalness: 0.8, 
+            roughness: 0.2 
+        });
+        const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+        blade.position.y = 1;
+        swordGroup.add(blade);
+        
+        // Handle
+        const handleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.6, 8);
+        const handleMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513, 
+            roughness: 0.8 
+        });
+        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+        handle.position.y = -0.2;
+        handle.rotation.x = Math.PI / 2;
+        swordGroup.add(handle);
+        
+        // Guard
+        const guardGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.2);
+        const guardMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffd700, 
+            metalness: 0.7, 
+            roughness: 0.3 
+        });
+        const guard = new THREE.Mesh(guardGeometry, guardMaterial);
+        swordGroup.add(guard);
+        
+        // Position the sword on the counter
+        swordGroup.position.set(0, 1.5, -2);
+        swordGroup.rotation.set(0, 0, Math.PI / 4);
+        swordGroup.scale.set(0.8, 0.8, 0.8);
+        
+        // Cast shadows
+        swordGroup.traverse((object) => {
+            if (object.isMesh) {
+                object.castShadow = true;
+                object.receiveShadow = true;
+            }
+        });
+        
+        swordGroup.userData = { type: 'sword', clickable: true };
+        scene.add(swordGroup);
+        
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        scene.add(directionalLight);
+        
+        // Setup raycaster for interactions
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+        
+        function onClick(event) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                
+                // Find parent with userData
+                while (obj && !obj.userData?.clickable) {
+                    obj = obj.parent;
+                }
+                
+                if (obj && obj.userData?.clickable) {
+                    if (obj.userData.type === 'counter') {
+                        alert('This is the shopkeeper\'s counter. What would you like to buy?');
+                    } else if (obj.userData.type === 'sword') {
+                        alert('A fine steel sword! It costs 25 gold coins.');
+                        
+                        // Animate the sword on click
+                        const initialRotation = swordGroup.rotation.z;
+                        
+                        // Simple animation
+                        let animationTime = 0;
+                        function animateSword() {
+                            animationTime += 0.1;
+                            swordGroup.rotation.z = initialRotation + Math.sin(animationTime) * 0.2;
+                            
+                            if (animationTime < Math.PI * 2) {
+                                requestAnimationFrame(animateSword);
+                            } else {
+                                swordGroup.rotation.z = initialRotation;
+                            }
+                        }
+                        
+                        animateSword();
+                    }
+                }
+            }
+        }
+        
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('click', onClick);
+        window.addEventListener('resize', onWindowResize);
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotate the sword slightly
+            swordGroup.rotation.y += 0.005;
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+    </script>
+</body>
+</html> 
