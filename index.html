@@ -8,6 +8,11 @@
     <!-- Load Three.js from more reliable CDN sources -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
+    <!-- We don't need the Anthropic SDK on client side anymore -->
+    
+    <!-- Load environment variables -->
+    <script src="env-config.js"></script>
+    
     <!-- Embed our own OrbitControls implementation -->
     <script>
         // Simple OrbitControls implementation that doesn't rely on external dependencies
@@ -498,26 +503,81 @@
             border-bottom-right-radius: 0;
         }
         
-        #chat-options {
-            padding: 10px;
+        /* New chat input styles */
+        #chat-input-container {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            padding: 10px;
+            border-top: 1px solid rgba(139, 69, 19, 0.5);
         }
         
-        .chat-option {
-            background-color: rgba(139, 69, 19, 0.5);
-            color: #FFD700;
+        #chat-input {
+            flex-grow: 1;
+            padding: 8px 12px;
+            border-radius: 20px;
             border: 1px solid #8B4513;
-            border-radius: 8px;
-            padding: 8px;
-            text-align: left;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        
+        #chat-send-btn {
+            background-color: #8B4513;
+            color: #FFD700;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            margin-left: 8px;
             cursor: pointer;
             transition: background-color 0.2s;
         }
         
-        .chat-option:hover {
-            background-color: rgba(139, 69, 19, 0.8);
+        #chat-send-btn:hover {
+            background-color: #A0522D;
+        }
+        
+        /* Loading indicator for LLM responses */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            background-color: rgba(139, 69, 19, 0.3);
+            border-radius: 12px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            margin: 0 1px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            display: inline-block;
+            opacity: 0.4;
+        }
+        
+        .typing-indicator span:nth-child(1) {
+            animation: pulse 1s infinite;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation: pulse 1s infinite 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation: pulse 1s infinite 0.4s;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+        
+        /* Remove old chat options styles */
+        #chat-options {
+            display: none;
         }
         
         /* Speech bubble over shopkeeper's head */
@@ -597,8 +657,9 @@
             <div id="chat-messages">
                 <!-- Chat messages will be added here -->
             </div>
-            <div id="chat-options">
-                <!-- Chat options will be added here -->
+            <div id="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type your message...">
+                <button id="chat-send-btn">Send</button>
             </div>
         </div>
         
@@ -1441,6 +1502,12 @@
                         clearTimeout(chatPromptTimeout);
                         chatPromptTimeout = null;
                         chatActive = false;
+                        
+                        // Reset conversation if player walks away
+                        if (conversationHistory.length > 0) {
+                            conversationHistory = [];
+                            console.log("Conversation reset - player walked away");
+                        }
                     }
                     
                     // Render scene
@@ -1472,130 +1539,16 @@
                 // Chat system variables
                 let chatActive = false;
                 let chatPromptTimeout = null;
-                let currentDialogueStep = 'greeting';
                 
-                // Dialogue options for the shopkeeper
-                const dialogueTree = {
-                    greeting: {
-                        shopkeeperMessage: function(address) {
-                            const shortAddress = address.toLowerCase().endsWith('.eth') 
-                                ? address 
-                                : address.substring(0, 6) + '...' + address.substring(38);
-                            return `Greetings, ${shortAddress}! What brings you to my humble shop today?`;
-                        },
-                        options: [
-                            { text: "I'm looking for weapons.", nextStep: "weapons" },
-                            { text: "Do you have any potions?", nextStep: "potions" },
-                            { text: "Tell me about yourself.", nextStep: "about" },
-                            { text: "Just browsing, thanks.", nextStep: "browsing" }
-                        ]
-                    },
-                    weapons: {
-                        shopkeeperMessage: "Ah, weapons! I have the finest steel in the region. My swords are forged in the ancient fires of the mountain dwarves.",
-                        options: [
-                            { text: "How much for that steel sword?", nextStep: "sword_price" },
-                            { text: "Do you have anything magical?", nextStep: "magical_weapons" },
-                            { text: "Let me see what else you have.", nextStep: "greeting" }
-                        ]
-                    },
-                    potions: {
-                        shopkeeperMessage: "I have healing potions, strength elixirs, and even rare invisibility draughts. What sort of remedy do you seek?",
-                        options: [
-                            { text: "I need something for healing.", nextStep: "healing_potions" },
-                            { text: "What's your strongest potion?", nextStep: "strong_potion" },
-                            { text: "Let me see what else you have.", nextStep: "greeting" }
-                        ]
-                    },
-                    about: {
-                        shopkeeperMessage: function(address) {
-                            const shortAddress = address.toLowerCase().endsWith('.eth') 
-                                ? address 
-                                : address.substring(0, 6) + '...' + address.substring(38);
-                            return `I've been a shopkeeper in this village for over 30 years, ${shortAddress}. Before that, I was an adventurer like yourself, until I took an arrow to the knee.`;
-                        },
-                        options: [
-                            { text: "Tell me about your adventures.", nextStep: "adventures" },
-                            { text: "How's business these days?", nextStep: "business" },
-                            { text: "Let's talk about your wares.", nextStep: "greeting" }
-                        ]
-                    },
-                    browsing: {
-                        shopkeeperMessage: "Take your time! Let me know if anything catches your eye. I've got special discounts for polite travelers.",
-                        options: [
-                            { text: "Actually, I do have questions about your weapons.", nextStep: "weapons" },
-                            { text: "Tell me about your potions.", nextStep: "potions" },
-                            { text: "I'd like to buy something.", nextStep: "buy" }
-                        ]
-                    },
-                    sword_price: {
-                        shopkeeperMessage: "That fine steel sword? Only 25 gold pieces! It's a bargain for such craftsmanship. Would you like to purchase it?",
-                        options: [
-                            { text: "I'll take it!", nextStep: "buy_sword" },
-                            { text: "That's a bit expensive.", nextStep: "haggle" },
-                            { text: "Let me think about it.", nextStep: "greeting" }
-                        ]
-                    },
-                    magical_weapons: {
-                        shopkeeperMessage: "For a discerning customer like yourself, I might have something special... This crystal-infused blade can cut through armor like butter and glows when enemies are near.",
-                        options: [
-                            { text: "How much for the magical sword?", nextStep: "magic_sword_price" },
-                            { text: "I'll stick with regular weapons for now.", nextStep: "weapons" },
-                            { text: "Let me browse your other items.", nextStep: "greeting" }
-                        ]
-                    },
-                    healing_potions: {
-                        shopkeeperMessage: "My healing potions are brewed with rare herbs from the Misty Forest. 5 gold coins for a standard vial that will heal most wounds instantly.",
-                        options: [
-                            { text: "I'll take a healing potion.", nextStep: "buy_potion" },
-                            { text: "Do you have stronger healing potions?", nextStep: "strong_healing" },
-                            { text: "Let me look at something else.", nextStep: "greeting" }
-                        ]
-                    },
-                    buy: {
-                        shopkeeperMessage: "Excellent! Here's what I have available today. What would you like to purchase?",
-                        options: [
-                            { text: "Show me your weapons", nextStep: "weapons" },
-                            { text: "I need potions", nextStep: "potions" },
-                            { text: "Let me see that magical crystal", nextStep: "crystal" },
-                            { text: "On second thought, just browsing", nextStep: "browsing" }
-                        ]
-                    },
-                    buy_sword: {
-                        shopkeeperMessage: function(address) {
-                            const namePrefix = address.toLowerCase().endsWith('.eth') 
-                                ? address.split('.')[0] 
-                                : "brave hero";
-                            return `A fine choice, ${namePrefix}! This sword has served many heroes well. Use it wisely! *hands you the steel sword*`;
-                        },
-                        options: [
-                            { text: "Thank you! Do you have anything else to go with it?", nextStep: "accessories" },
-                            { text: "Thanks! I'll be on my way now.", nextStep: "farewell" }
-                        ]
-                    },
-                    buy_potion: {
-                        shopkeeperMessage: "Here's your healing potion! Remember to drink it all in one go for the full effect. *hands you a red glowing vial*",
-                        options: [
-                            { text: "Thanks! Any advice on using it?", nextStep: "potion_advice" },
-                            { text: "I appreciate it. Let me browse more.", nextStep: "greeting" }
-                        ]
-                    },
-                    farewell: {
-                        shopkeeperMessage: function(address) {
-                            const namePrefix = address.toLowerCase().endsWith('.eth') 
-                                ? address.split('.')[0] 
-                                : "adventurer";
-                            return `Safe travels, ${namePrefix}! May your blade stay sharp and your wits sharper! Return any time.`;
-                        },
-                        options: [
-                            { text: "Goodbye, shopkeeper!", nextStep: "end_chat" }
-                        ]
-                    },
-                    end_chat: {
-                        shopkeeperMessage: "Farewell!",
-                        options: []
-                    }
-                };
+                // LLM chat variables
+                let conversationHistory = [];
+                let isWaitingForResponse = false;
                 
+                // Configure API url - use ENV configuration or fallback to localhost
+                const API_URL = window.ENV?.API_URL || 'http://localhost:3001/api';
+                
+                // System prompt for the shopkeeper character is now maintained on the server
+
                 // Show chat prompt with greeting
                 function showChatPrompt() {
                     const chatWindow = document.getElementById('chat-window');
@@ -1603,80 +1556,185 @@
                     chatWindow.classList.add('active');
                     chatActive = true;
                     
-                    // Start dialogue with greeting
-                    updateDialogue('greeting');
+                    // Initialize chat with shopkeeper greeting
+                    const initialGreeting = generateShopkeeperGreeting();
+                    addMessageToChat(initialGreeting, 'shopkeeper');
+                    
+                    // Add initial message to conversation history
+                    conversationHistory.push({
+                        role: "assistant", 
+                        content: initialGreeting
+                    });
                 }
                 
-                // Update dialogue based on current step
-                function updateDialogue(step) {
-                    currentDialogueStep = step;
-                    const dialogue = dialogueTree[step];
-                    const chatMessages = document.getElementById('chat-messages');
-                    const chatOptions = document.getElementById('chat-options');
+                // Generate a personalized greeting based on user's wallet address
+                function generateShopkeeperGreeting() {
+                    const namePrefix = address.toLowerCase().endsWith('.eth') 
+                        ? address.split('.')[0] 
+                        : "honored guest";
                     
-                    // Add shopkeeper message
-                    if (dialogue.shopkeeperMessage) {
-                        const shopkeeperMsg = document.createElement('div');
-                        shopkeeperMsg.className = 'chat-message shopkeeper-message';
+                    return `Ah, welcome to my humble shop, ${namePrefix}! *gestures broadly at the merchandise* please look around! I have the finest weapons and potions in all the land. That sword catching your eye?`;
+                }
+                
+                // Add message to chat display
+                function addMessageToChat(message, sender) {
+                    const chatMessages = document.getElementById('chat-messages');
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `chat-message ${sender}-message`;
+                    messageDiv.textContent = message;
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    // Update speech bubble if it's a shopkeeper message
+                    if (sender === 'shopkeeper') {
+                        // Extract first sentence for speech bubble
+                        const firstSentence = message.split(/[.!?]/)[0] + '.';
+                        document.getElementById('speech-bubble').textContent = firstSentence;
+                    }
+                }
+                
+                // Show typing indicator
+                function showTypingIndicator() {
+                    const chatMessages = document.getElementById('chat-messages');
+                    const indicator = document.createElement('div');
+                    indicator.className = 'typing-indicator';
+                    indicator.id = 'typing-indicator';
+                    indicator.innerHTML = '<span></span><span></span><span></span>';
+                    chatMessages.appendChild(indicator);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+                
+                // Remove typing indicator
+                function removeTypingIndicator() {
+                    const indicator = document.getElementById('typing-indicator');
+                    if (indicator) {
+                        indicator.remove();
+                    }
+                }
+                
+                // Send message to LLM API and get response
+                async function sendMessageToLLM(userMessage) {
+                    // Show the typing indicator
+                    showTypingIndicator();
+                    
+                    try {
+                        // Create the messages array with conversation history
+                        const messages = [
+                            ...conversationHistory,
+                            { role: "user", content: userMessage }
+                        ];
                         
-                        // Check if shopkeeperMessage is a function that needs the address
-                        if (typeof dialogue.shopkeeperMessage === 'function') {
-                            shopkeeperMsg.textContent = dialogue.shopkeeperMessage(address);
-                        } else {
-                            shopkeeperMsg.textContent = dialogue.shopkeeperMessage;
+                        console.log("Sending to backend API:", messages);
+                        
+                        // Make the API call to our Node.js server
+                        const response = await fetch(`${API_URL}/chat`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                messages: messages
+                                // System prompt is now managed on the server
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(`API Error: ${response.status} - ${errorData.error || response.statusText}`);
                         }
                         
-                        chatMessages.appendChild(shopkeeperMsg);
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                        // Parse the response from our backend
+                        const data = await response.json();
+                        const shopkeeperResponse = data.response;
                         
-                        // Update speech bubble with the first part of the message
-                        let message = shopkeeperMsg.textContent;
-                        const shortMessage = message.split('.')[0] + '.';
-                        document.getElementById('speech-bubble').textContent = shortMessage;
+                        // Remove typing indicator and add response
+                        removeTypingIndicator();
+                        addMessageToChat(shopkeeperResponse, 'shopkeeper');
+                        
+                        // Add to conversation history
+                        conversationHistory.push({ role: "user", content: userMessage });
+                        conversationHistory.push({ role: "assistant", content: shopkeeperResponse });
+                        
+                        return shopkeeperResponse;
+                    } catch (error) {
+                        console.error("Error communicating with backend API:", error);
+                        removeTypingIndicator();
+                        
+                        // If API call failed, fall back to the simulation
+                        const fallbackResponse = simulateShopkeeperResponse(userMessage);
+                        addMessageToChat(fallbackResponse, 'shopkeeper');
+                        
+                        // Add to conversation history
+                        conversationHistory.push({ role: "user", content: userMessage });
+                        conversationHistory.push({ role: "assistant", content: fallbackResponse });
+                        
+                        return fallbackResponse;
                     }
+                }
+                
+                // This function simulates LLM responses for demo purposes
+                // In production, replace this with actual API calls to an LLM service
+                function simulateShopkeeperResponse(userMessage) {
+                    const lowerMessage = userMessage.toLowerCase();
                     
-                    // Clear previous options
-                    chatOptions.innerHTML = '';
+                    if (lowerMessage.includes("sword") && lowerMessage.includes("price")) {
+                        return "Ah, you have a keen eye for quality! *holds up the sword, letting light gleam off the blade* This magnificent sword? Normally 30 gold pieces, but for you, just 25! *leans in* The steel was forged in the mountain fires of Anatolia, folded one hundred times. You'll never find a finer blade this side of the great sea!";
+                    }
+                    else if (lowerMessage.includes("potion") || lowerMessage.includes("heal")) {
+                        return "Healing potions? Of course! *pulls out a red vial* Only 5 gold pieces each. But... *glances at the sword on display* a warrior like yourself surely needs a proper weapon to prevent injuries in the first place, no? That sword would suit you perfectly! *smiles hopefully*";
+                    }
+                    else if (lowerMessage.includes("discount") || lowerMessage.includes("cheaper") || lowerMessage.includes("expensive")) {
+                        return "*puts hand over heart, looking wounded* My friend, these prices? Already so reasonable! *sighs dramatically* But perhaps... for you, I could part with the sword for 22 gold pieces. *whispers* Don't tell my other customers - this is only because I see you are a person of great importance!";
+                    }
+                    else if (lowerMessage.includes("crystal") || lowerMessage.includes("magic")) {
+                        return "*eyes light up* Ah! The magic crystal! *carefully takes it from its display* Feel the power humming within! 50 gold pieces for this rare treasure. It can enhance spells, reveal invisible enemies, or even guide you to hidden treasures! A bargain, I assure you!";
+                    }
+                    else if (lowerMessage.includes("hello") || lowerMessage.includes("hi") || lowerMessage.includes("greet")) {
+                        return "Merhaba, welcome to my humble shop! *bows slightly* I am Kemal, purveyor of the finest weapons and magical items in the bazaar. *gestures to the sword display* That beauty caught your eye, yes? A warrior of your caliber deserves nothing less!";
+                    }
+                    else if (lowerMessage.includes("bye") || lowerMessage.includes("leaving") || lowerMessage.includes("go")) {
+                        return "*looks disappointed* Leaving so soon? Wait! *hurriedly grabs the sword* For you, final offer - 20 gold pieces for this masterpiece! *places hand on heart* I lose money at this price, but I wish for you to remember Kemal's generosity! No? Perhaps next time then. Allah'a ısmarladık, my friend!";
+                    }
+                    else {
+                        return "*nods enthusiastically* Yes, yes! But have you considered this magnificent sword? *lifts it carefully from the display* Feel the balance! See how the light dances on the blade! For a mere 25 gold pieces, you could be the envy of all your friends. Shall I wrap it for you? *smiles hopefully*";
+                    }
+                }
+                
+                // Setup chat input and send button
+                function setupChatInputHandlers() {
+                    const chatInput = document.getElementById('chat-input');
+                    const sendButton = document.getElementById('chat-send-btn');
                     
-                    // Add new dialogue options
-                    dialogue.options.forEach(option => {
-                        const optionButton = document.createElement('button');
-                        optionButton.className = 'chat-option';
-                        optionButton.textContent = option.text;
-                        optionButton.addEventListener('click', () => {
-                            // Add player response to chat
-                            const playerMsg = document.createElement('div');
-                            playerMsg.className = 'chat-message player-message';
-                            playerMsg.textContent = option.text;
-                            chatMessages.appendChild(playerMsg);
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                            
-                            // If the option leads to buying something, show notification
-                            if (option.nextStep === 'buy_sword') {
-                                showNotification('Purchased Steel Sword!');
-                            } else if (option.nextStep === 'buy_potion') {
-                                showNotification('Purchased Healing Potion!');
-                            }
-                            
-                            // If the nextStep is end_chat, close the chat window
-                            if (option.nextStep === 'end_chat') {
-                                setTimeout(() => {
-                                    const chatWindow = document.getElementById('chat-window');
-                                    chatWindow.classList.remove('active');
-                                    setTimeout(() => {
-                                        chatWindow.classList.add('hidden');
-                                        chatActive = false;
-                                    }, 300);
-                                }, 1000);
-                            } else {
-                                // Otherwise, update dialogue with next step
-                                setTimeout(() => {
-                                    updateDialogue(option.nextStep);
-                                }, 500);
-                            }
-                        });
-                        chatOptions.appendChild(optionButton);
+                    // Send message on button click
+                    sendButton.addEventListener('click', sendUserMessage);
+                    
+                    // Send message on Enter key
+                    chatInput.addEventListener('keypress', function(event) {
+                        if (event.key === 'Enter') {
+                            sendUserMessage();
+                        }
                     });
+                    
+                    function sendUserMessage() {
+                        if (isWaitingForResponse) return;
+                        
+                        const userMessage = chatInput.value.trim();
+                        if (userMessage === '') return;
+                        
+                        // Add user message to chat
+                        addMessageToChat(userMessage, 'player');
+                        
+                        // Clear input field
+                        chatInput.value = '';
+                        
+                        // Set waiting flag
+                        isWaitingForResponse = true;
+                        
+                        // Get shopkeeper response
+                        sendMessageToLLM(userMessage).then(() => {
+                            isWaitingForResponse = false;
+                        });
+                    }
                 }
                 
                 // Close chat button event listener
@@ -1688,6 +1746,9 @@
                         chatActive = false;
                     }, 300);
                 });
+                
+                // Initialize chat system
+                setupChatInputHandlers();
                 
                 console.log('Starting animation loop');
                 // Start animation loop

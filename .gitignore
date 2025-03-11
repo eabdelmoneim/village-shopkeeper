@@ -17,6 +17,7 @@ build/
 .env.development
 .env.test
 .env.production
+env-config.js
 *.pem
 
 # Editor and IDE files

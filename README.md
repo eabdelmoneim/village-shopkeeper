@@ -1,6 +1,6 @@
-# Village Shopkeeper
+# Village Shopkeeper with Claude AI Integration
 
-A Three.js game scene that implements a medieval village shopkeeper experience based on the provided concept art. Players can interact with the shopkeeper to buy potions and swords.
+An interactive 3D marketplace scene featuring a Turkish bazaar shopkeeper powered by Claude AI.
 
 ## Features
 
@@ -12,35 +12,103 @@ A Three.js game scene that implements a medieval village shopkeeper experience b
 - Magic crystal with glowing effects
 - Buy and sell system with currency
 
-## Implementation Notes
+## Updated Architecture
 
-The application provides two main files:
-- `index.html` - The main application with the complete scene implementation
-- `test.html` - A simplified version that loads faster and demonstrates core functionality
+The application has been rearchitected to use a client-server model for handling Claude AI interactions:
 
-Both files use CDN-hosted Three.js libraries to avoid module loading issues, making them more compatible across different environments.
+1. **Client**: The browser-based 3D application that renders the scene and handles user interactions
+2. **Server**: A Node.js backend that securely communicates with the Claude API
 
-## Getting Started
+This architecture provides several benefits:
+- Properly secures the Claude API key (server-side only)
+- Uses the official Anthropic Node.js SDK in its intended environment
+- Allows for future expansion and more complex AI features
 
-### Prerequisites
+## Setup Instructions
 
-- Modern web browser with WebGL support
-- Internet connection (for loading Three.js libraries from CDN)
+### 1. Clone the Repository
 
-### Installation
-
-1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/village-shopkeeper.git
 cd village-shopkeeper
 ```
 
-2. Start a local development server:
+### 2. Install Dependencies
+
 ```bash
-npx serve
+# Install root dependencies
+npm install
+
+# Install server dependencies
+cd server
+npm install
+cd ..
 ```
 
-3. Open your browser and navigate to `http://localhost:3000`
+### 3. Configure Environment Variables
+
+The project uses a single `.env` file for both server and client configuration:
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Or just run `./start-dev.sh` which will create an example .env file if one doesn't exist.
+
+2. Edit the `.env` file with your settings:
+   ```
+   # Claude API key
+   CLAUDE_API_KEY=your_api_key_here
+   
+   # Optional Claude API configuration
+   CLAUDE_API_MODEL=claude-3-opus-20240229
+   
+   # Server configuration
+   SERVER_URL=http://localhost:3001
+   
+   # Client configuration (optional)
+   # CLIENT_API_URL=http://your-custom-api-url/api
+   ```
+
+### 4. Running the Application
+
+Start both the client and server with a single command:
+
+```bash
+npm start
+# Or directly:
+./start-dev.sh
+```
+
+This will:
+1. Generate the client-side environment configuration from your .env file
+2. Start the Node.js server
+3. Serve the client application
+
+The application will be available at:
+- Client: http://localhost:3000
+- Server API: http://localhost:3001/api
+
+### 5. Interacting with the Shopkeeper
+
+1. Open your browser to the client URL (typically http://localhost:3000)
+2. Enter an ENS name or Ethereum wallet address on the welcome screen
+3. Approach the shopkeeper in the 3D scene
+4. Type messages in the chat interface to haggle with the Turkish bazaar merchant
+5. Try asking about his wares, negotiating prices, or inquiring about the sword!
+
+## Fallback Behavior
+
+If the Claude API isn't configured correctly or experiences an error, the application will automatically fall back to using pre-programmed responses. This ensures the app remains functional even without a working API connection.
+
+## Technical Implementation
+
+- The application uses the Claude Messages API (v1)
+- Conversations maintain context through the entire interaction
+- The shopkeeper's character is defined by a detailed system prompt on the server side
+- Environment variables are managed in a single .env file
+- Client-side configuration is automatically generated from the .env file at startup
 
 ## Controls
 
@@ -48,53 +116,34 @@ npx serve
 - **Interact**: Click on objects or characters
 - **Camera**: Click and drag to rotate, scroll to zoom
 
-## Technical Implementation
-
-This project is built using:
-
-- **Three.js**: For 3D rendering (via CDN)
-- **OrbitControls**: For camera movement
-- **Custom Characters**: Built using primitive Three.js shapes
-- **Custom Items**: Potions, swords, and other items built with Three.js geometry
-
-The scene is structured with:
-
-- **Street**: Cobblestone street with stone details
-- **Shop**: Wooden structure with counter, shelves, and awning
-- **Items for Sale**: Potions with different colors and a sword
-- **Characters**: Shopkeeper with beard and interactive elements
-
 ## Project Structure
 
 ```
 village-shopkeeper/
 ├── index.html              # Main application (self-contained)
 ├── test.html               # Simplified test version
-├── styles/
-│   └── main.css            # CSS styles for UI (used by main version)
+├── .env                    # Environment variables for both client and server
+├── generate-env-config.js  # Script to generate client-side config from .env
+├── env-config.js           # Auto-generated client-side config (gitignored)
+├── styles/                 # CSS and styling
 ├── assets/                 # For future textures/models
 ├── node_modules/           # Dependencies
 ├── package.json            # Project configuration
+├── server/                 # Backend API server
+│   ├── server.js           # Express server setup
+│   ├── controllers/        # API logic
+│   ├── routes/             # API routes
+├── start-dev.sh            # Development startup script
 └── README.md               # This file
 ```
 
 ## Troubleshooting
 
-If you encounter issues with the main application (`index.html`):
-1. Try the simplified version (`test.html`) first to verify Three.js is working
-2. Check your browser console for errors
+If you encounter issues:
+1. Check that your .env file exists and contains a valid Claude API key
+2. Verify that the server is running (check for messages in the terminal)
 3. Ensure your browser supports WebGL 
-4. Verify your internet connection for loading CDN libraries
-
-## Extending the Project
-
-You can extend this project by:
-
-1. Adding more items to the shop
-2. Creating a day/night cycle
-3. Adding more NPCs and buildings
-4. Implementing a quest system
-5. Adding textures instead of using basic materials
+4. Check the browser console for any JavaScript errors
 
 ## License
 
