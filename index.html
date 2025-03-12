@@ -1633,7 +1633,8 @@
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                messages: messages
+                                messages: messages,
+                                userAddress: address // Include the user's address
                                 // System prompt is now managed on the server
                             })
                         });

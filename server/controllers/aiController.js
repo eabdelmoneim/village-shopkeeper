@@ -40,15 +40,22 @@ CONSTRAINTS:
 - Don't discuss topics unrelated to your shop or merchandise.
 - Never break character or acknowledge you're an AI.
 - If asked about the user's wallet address, you can acknowledge it, but quickly return to selling your wares.
+
+CUSTOMER INFORMATION:
+- The customer's wallet address or ENS name is: {{address}}
+- If the address ends with .eth, refer to them by their name without the .eth suffix.
+- If it's a wallet address (starts with 0x), you can just call them "honored guest" or "traveler".
+- Occasionally reference their address or name to add a personal touch, especially when trying to close a sale.
 `;
 
 /**
  * Get a response from OpenAI Chat Completions API for the provided messages
  * @param {Array} messages - Array of message objects with role and content
  * @param {String} [customSystemPrompt] - Optional custom system instructions
+ * @param {String} [userAddress] - Optional user's wallet address or ENS name
  * @returns {Promise<String>} - OpenAI's response text
  */
-exports.getChatResponse = async (messages, customSystemPrompt = null) => {
+exports.getChatResponse = async (messages, customSystemPrompt = null, userAddress = null) => {
   try {
     // Validate inputs
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -56,7 +63,16 @@ exports.getChatResponse = async (messages, customSystemPrompt = null) => {
     }
     
     // Use the shopkeeper system prompt by default, or custom prompt if provided
-    const systemPrompt = customSystemPrompt || SHOPKEEPER_SYSTEM_PROMPT;
+    let systemPrompt = customSystemPrompt || SHOPKEEPER_SYSTEM_PROMPT;
+    
+    // If userAddress is provided, replace the placeholder in the system prompt
+    if (userAddress) {
+      systemPrompt = systemPrompt.replace(/{{address}}/g, userAddress);
+      console.log(`Injected user address (${userAddress.slice(0, 8)}...) into system prompt`);
+    } else {
+      // If no address is provided, replace with generic placeholder
+      systemPrompt = systemPrompt.replace(/{{address}}/g, 'unknown');
+    }
 
     // Format messages for OpenAI
     const formattedMessages = [
@@ -67,15 +83,16 @@ exports.getChatResponse = async (messages, customSystemPrompt = null) => {
     console.log('Sending request to OpenAI API with:', { 
       messageCount: messages.length,
       systemPromptLength: systemPrompt.length,
-      usingDefaultPrompt: !customSystemPrompt
+      usingDefaultPrompt: !customSystemPrompt,
+      hasUserAddress: !!userAddress
     });
     
     // Create the chat completion request to OpenAI
     const response = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: formattedMessages,
-      max_tokens: 1000,
-      temperature: 0.7
+      // max_tokens: 1000,
+      // temperature: 0.7
     });
 
     // Extract and return just the text content from OpenAI's response
@@ -89,10 +106,11 @@ exports.getChatResponse = async (messages, customSystemPrompt = null) => {
 /**
  * Get a response from the shopkeeper character
  * @param {Array} messages - Array of message objects with role and content
+ * @param {String} [userAddress] - Optional user's wallet address or ENS name
  * @returns {Promise<String>} - Shopkeeper's response text
  */
-exports.getShopkeeperResponse = async (messages) => {
-  return this.getChatResponse(messages); // Uses default shopkeeper prompt
+exports.getShopkeeperResponse = async (messages, userAddress = null) => {
+  return this.getChatResponse(messages, null, userAddress); // Uses default shopkeeper prompt
 };
 
 /**

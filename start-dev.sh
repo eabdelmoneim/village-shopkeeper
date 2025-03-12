@@ -7,11 +7,12 @@ echo "Starting Village Shopkeeper Application in development mode..."
 if [ ! -f .env ]; then
   echo "WARNING: .env file not found. Creating example .env file..."
   cat > .env << EOL
-# Claude API key - Replace this with your actual API key
-CLAUDE_API_KEY=your_api_key_here
+# OpenAI API key - Replace this with your actual API key
+THIRDWEB_API_KEY=your_api_key_here
 
-# Optional Claude API configuration
-CLAUDE_API_MODEL=claude-3-opus-20240229
+# OpenAI API configuration
+OPENAI_MODEL=gpt-4-1106-preview
+OPENAI_BASE_URL=https://nebula-api.thirdweb.com
 
 # Server configuration
 SERVER_URL=http://localhost:3001

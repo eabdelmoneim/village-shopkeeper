@@ -64,7 +64,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API available at http://localhost:${PORT}/api`);
-  console.log(`Using Claude model: ${process.env.CLAUDE_API_MODEL || 'claude-3-opus-20240229'}`);
+  console.log(`Using OpenAI model: ${process.env.OPENAI_MODEL || 'gpt-4-1106-preview'}`);
 });
 
 // Handle shutdown gracefully

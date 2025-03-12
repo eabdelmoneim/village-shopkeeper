@@ -1,6 +1,6 @@
-# Village Shopkeeper with Claude AI Integration
+# Village Shopkeeper with OpenAI Integration
 
-An interactive 3D marketplace scene featuring a Turkish bazaar shopkeeper powered by Claude AI.
+An interactive 3D marketplace scene featuring a Turkish bazaar shopkeeper powered by OpenAI.
 
 ## Features
 
@@ -14,14 +14,14 @@ An interactive 3D marketplace scene featuring a Turkish bazaar shopkeeper powere
 
 ## Updated Architecture
 
-The application has been rearchitected to use a client-server model for handling Claude AI interactions:
+The application has been rearchitected to use a client-server model for handling AI interactions:
 
 1. **Client**: The browser-based 3D application that renders the scene and handles user interactions
-2. **Server**: A Node.js backend that securely communicates with the Claude API
+2. **Server**: A Node.js backend that securely communicates with the OpenAI API
 
 This architecture provides several benefits:
-- Properly secures the Claude API key (server-side only)
-- Uses the official Anthropic Node.js SDK in its intended environment
+- Properly secures the API key (server-side only)
+- Uses the official OpenAI SDK in its intended environment
 - Allows for future expansion and more complex AI features
 
 ## Setup Instructions
@@ -58,11 +58,12 @@ The project uses a single `.env` file for both server and client configuration:
 
 2. Edit the `.env` file with your settings:
    ```
-   # Claude API key
-   CLAUDE_API_KEY=your_api_key_here
+   # OpenAI API key
+   THIRDWEB_API_KEY=your_api_key_here
    
-   # Optional Claude API configuration
-   CLAUDE_API_MODEL=claude-3-opus-20240229
+   # OpenAI API configuration
+   OPENAI_MODEL=gpt-4-1106-preview
+   OPENAI_BASE_URL=https://nebula-api.thirdweb.com
    
    # Server configuration
    SERVER_URL=http://localhost:3001
@@ -100,11 +101,11 @@ The application will be available at:
 
 ## Fallback Behavior
 
-If the Claude API isn't configured correctly or experiences an error, the application will automatically fall back to using pre-programmed responses. This ensures the app remains functional even without a working API connection.
+If the OpenAI API isn't configured correctly or experiences an error, the application will automatically fall back to using pre-programmed responses. This ensures the app remains functional even without a working API connection.
 
 ## Technical Implementation
 
-- The application uses the Claude Messages API (v1)
+- The application uses the OpenAI Chat Completions API
 - Conversations maintain context through the entire interaction
 - The shopkeeper's character is defined by a detailed system prompt on the server side
 - Environment variables are managed in a single .env file
@@ -140,7 +141,7 @@ village-shopkeeper/
 ## Troubleshooting
 
 If you encounter issues:
-1. Check that your .env file exists and contains a valid Claude API key
+1. Check that your .env file exists and contains a valid OpenAI API key
 2. Verify that the server is running (check for messages in the terminal)
 3. Ensure your browser supports WebGL 
 4. Check the browser console for any JavaScript errors
