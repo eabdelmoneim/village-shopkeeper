@@ -462,6 +462,7 @@
             max-height: 400px;
             display: flex;
             flex-direction: column;
+            z-index: 100; /* Ensure it's above other elements */
         }
         
         #chat-window.active {
@@ -484,6 +485,7 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            pointer-events: auto; /* Explicitly enable pointer events for scrolling */
         }
         
         .chat-message {
@@ -521,6 +523,7 @@
             background-color: rgba(255, 255, 255, 0.9);
             color: #333;
             font-size: 14px;
+            pointer-events: auto; /* Ensure it receives clicks */
         }
         
         #chat-send-btn {
@@ -532,6 +535,7 @@
             margin-left: 8px;
             cursor: pointer;
             transition: background-color 0.2s;
+            pointer-events: auto; /* Ensure it receives clicks */
         }
         
         #chat-send-btn:hover {
@@ -658,6 +662,17 @@
             color: #FFD700;
             font-size: 1.2em;
         }
+        
+        #close-chat-btn {
+            background: none;
+            border: none;
+            color: #FFD700;
+            cursor: pointer;
+            padding: 5px 10px;
+            font-size: 18px;
+            pointer-events: auto; /* Ensure it can receive clicks */
+            z-index: 101; /* Make sure it's above other elements */
+        }
     </style>
 </head>
 <body>
@@ -708,7 +723,7 @@
         <div id="chat-window" class="hidden">
             <div id="chat-header">
                 <h3>Talking with Shopkeeper</h3>
-                <button id="close-chat-btn" style="background: none; border: none; color: #FFD700; cursor: pointer;">✕</button>
+                <button id="close-chat-btn">✕</button>
             </div>
             <div id="chat-messages">
                 <!-- Chat messages will be added here -->
@@ -1569,8 +1584,14 @@
                 function onClick(event) {
                     // Check if the click is on a UI element with pointer-events: auto
                     // This prevents clicks from going through UI elements
-                    if (event.target.closest('[style*="pointer-events: auto"]')) {
-                        console.log('Click on UI element, ignoring for 3D interaction');
+                    const uiElement = event.target.closest('[style*="pointer-events: auto"]');
+                    if (uiElement || 
+                        event.target.id === 'chat-input' || 
+                        event.target.id === 'chat-send-btn' ||
+                        event.target.closest('#chat-window') ||
+                        event.target.closest('#interaction-panel')) {
+                        console.log('Click on UI element:', event.target.id || 'unnamed element');
+                        // Allow the event to continue its normal flow through the UI elements
                         return;
                     }
                     
@@ -1643,14 +1664,19 @@
                 // Add keyboard movement controls
                 const keyState = {};
                 
+                // Track UI input focus
+                let isTypingInChat = false;
+                
                 window.addEventListener('keydown', function(e) {
                     // Skip if we're focused on an input field
                     if (document.activeElement && 
                         (document.activeElement.tagName === 'INPUT' || 
                          document.activeElement.tagName === 'TEXTAREA')) {
+                        isTypingInChat = true;
                         return;
                     }
                     
+                    isTypingInChat = false;
                     const key = e.key.toLowerCase();
                     keyState[key] = true;
                 });
@@ -1663,7 +1689,7 @@
                 // Keyboard movement function that gets called in the animation loop
                 function handleKeyboardMovement() {
                     // Skip if we're focused on an input field
-                    if (document.activeElement && 
+                    if (isTypingInChat || document.activeElement && 
                         (document.activeElement.tagName === 'INPUT' || 
                          document.activeElement.tagName === 'TEXTAREA')) {
                         return;
@@ -1841,6 +1867,23 @@
                     chatWindow.classList.remove('hidden');
                     chatWindow.classList.add('active');
                     chatActive = true;
+                    
+                    // Add click handler to chat window to prevent clicks from propagating
+                    chatWindow.addEventListener('click', function(event) {
+                        // Only stop propagation if click is directly on the chat window (not on buttons/inputs)
+                        if (event.target === chatWindow || 
+                            event.target.id === 'chat-header' || 
+                            event.target.id === 'chat-messages') {
+                            event.stopPropagation();
+                        }
+                    });
+                    
+                    // Focus the input after a short delay to ensure the chat is visible
+                    setTimeout(() => {
+                        const chatInput = document.getElementById('chat-input');
+                        chatInput.focus();
+                        isTypingInChat = true;
+                    }, 300);
                     
                     // Show typing indicator while we get the initial greeting
                     const chatMessages = document.getElementById('chat-messages');
@@ -2028,6 +2071,29 @@
                 function setupChatInputHandlers() {
                     const chatInput = document.getElementById('chat-input');
                     const sendButton = document.getElementById('chat-send-btn');
+                    const chatMessages = document.getElementById('chat-messages');
+                    
+                    // Enable scrolling in chat messages area
+                    chatMessages.addEventListener('wheel', function(event) {
+                        // Prevent the wheel event from reaching the canvas/OrbitControls
+                        event.stopPropagation();
+                    });
+                    
+                    // Force focus when clicking on the chat input
+                    chatInput.addEventListener('click', function(event) {
+                        event.stopPropagation();
+                        this.focus();
+                        isTypingInChat = true;
+                    });
+                    
+                    // Update typing state when input gets/loses focus
+                    chatInput.addEventListener('focus', function() {
+                        isTypingInChat = true;
+                    });
+                    
+                    chatInput.addEventListener('blur', function() {
+                        isTypingInChat = false;
+                    });
                     
                     // Send message on button click
                     sendButton.addEventListener('click', sendUserMessage);
@@ -2062,7 +2128,11 @@
                 }
                 
                 // Close chat button event listener
-                document.getElementById('close-chat-btn').addEventListener('click', function() {
+                document.getElementById('close-chat-btn').addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    console.log('Close chat button clicked');
                     const chatWindow = document.getElementById('chat-window');
                     chatWindow.classList.remove('active');
                     setTimeout(() => {
