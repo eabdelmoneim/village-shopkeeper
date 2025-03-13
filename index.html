@@ -13,6 +13,9 @@
     <!-- Load environment variables -->
     <script src="env-config.js"></script>
     
+    <!-- Load our interaction handling script -->
+    <script src="js/interactions.js"></script>
+    
     <!-- Embed our own OrbitControls implementation -->
     <script>
         // Simple OrbitControls implementation that doesn't rely on external dependencies
@@ -611,6 +614,50 @@
         #speech-bubble.active {
             opacity: 1;
         }
+        
+        /* Loading overlay styles */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1500;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .loading-content {
+            text-align: center;
+            background-color: rgba(51, 25, 0, 0.9);
+            padding: 40px;
+            border-radius: 10px;
+            border: 3px solid #8B4513;
+            max-width: 400px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        .loading-spinner {
+            margin: 20px auto;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 215, 0, 0.3);
+            border-radius: 50%;
+            border-top-color: #FFD700;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #loading-message {
+            color: #FFD700;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
@@ -622,6 +669,15 @@
             <input type="text" id="wallet-input" placeholder="ENS name (.eth) or Ethereum wallet address (0x...)" autocomplete="off">
             <div id="validation-message"></div>
             <button id="enter-button" disabled>Enter Marketplace</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay - New element -->
+    <div id="loading-overlay" class="hidden">
+        <div class="loading-content">
+            <h2>Entering Marketplace</h2>
+            <div class="loading-spinner"></div>
+            <p id="loading-message">Loading scene ...</p>
         </div>
     </div>
 
@@ -750,20 +806,114 @@
                 address = walletInput.value.trim();
                 console.log('User entered address:', address);
                 
+                // Hide welcome screen with fade-out animation
                 const welcomeScreen = document.getElementById('welcome-screen');
-                
-                // Add fade-out animation
                 welcomeScreen.style.opacity = '0';
                 welcomeScreen.style.transition = 'opacity 1s ease-in-out';
                 
-                // Initialize the scene after the welcome screen fades out
+                // After the welcome screen fades out, show loading overlay
                 setTimeout(function() {
                     welcomeScreen.style.display = 'none';
                     
-                    // Now initialize the scene
-                    initializeScene(address);
+                    // Show loading overlay
+                    const loadingOverlay = document.getElementById('loading-overlay');
+                    loadingOverlay.classList.remove('hidden');
+                    
+                    // Start preloading the greeting
+                    preloadInitialGreeting(address)
+                        .then(() => {
+                            // Fade out the loading overlay
+                            loadingOverlay.style.opacity = '0';
+                            
+                            // Remove loading overlay and initialize the scene
+                            setTimeout(() => {
+                                loadingOverlay.classList.add('hidden');
+                                initializeScene(address);
+                            }, 500);
+                        })
+                        .catch(error => {
+                            // Update loading message with error and continue anyway after 2 seconds
+                            document.getElementById('loading-message').textContent = 
+                                "Couldn't preload greeting. Continuing anyway...";
+                            console.error("Error preloading greeting:", error);
+                            
+                            setTimeout(() => {
+                                loadingOverlay.style.opacity = '0';
+                                setTimeout(() => {
+                                    loadingOverlay.classList.add('hidden');
+                                    initializeScene(address);
+                                }, 500);
+                            }, 2000);
+                        });
                 }, 1000);
             });
+            
+            // Function to preload initial greeting before scene is loaded
+            // Now returns a promise that resolves when preloading is complete
+            function preloadInitialGreeting(userAddress) {
+                return new Promise((resolve, reject) => {
+                    const API_URL = window.ENV?.API_URL || 'http://localhost:3001/api';
+                    
+                    console.log('Preloading initial greeting with address:', userAddress);
+                    document.getElementById('loading-message').textContent = "Connecting to shopkeeper...";
+                    
+                    // Create the message payload
+                    const payload = {
+                        messages: [
+                            { role: "user", content: "I've just entered your shop for the first time. Greet me!" }
+                        ],
+                        userAddress: userAddress
+                    };
+                    
+                    // Set up a timeout - 2 minutes (120,000 ms)
+                    let timeoutId = setTimeout(() => {
+                        console.error('API request timed out after 2 minutes');
+                        document.getElementById('loading-message').textContent = 
+                            "Shopkeeper is taking too long to respond. Continuing anyway...";
+                        reject(new Error('API request timed out after 2 minutes'));
+                    }, 120000);
+                    
+                    // Make the API call
+                    fetch(`${API_URL}/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => {
+                        // Clear the timeout since we got a response
+                        clearTimeout(timeoutId);
+                        
+                        if (!response.ok) {
+                            throw new Error(`API Error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        // Store the preloaded greeting in a global variable
+                        window.preloadedShopkeeperGreeting = data.response;
+                        console.log('Initial greeting preloaded successfully:', window.preloadedShopkeeperGreeting);
+                        
+                        // Update loading message
+                        document.getElementById('loading-message').textContent = "Ready to enter marketplace!";
+                        
+                        // Resolve the promise after a short delay to show "Ready" message
+                        setTimeout(resolve, 500);
+                    })
+                    .catch(error => {
+                        // Clear the timeout if there was an error
+                        clearTimeout(timeoutId);
+                        
+                        console.error('Error preloading initial greeting:', error);
+                        document.getElementById('loading-message').textContent = 
+                            "Failed to connect to shopkeeper. Continuing anyway...";
+                        
+                        // Reject after a short delay
+                        setTimeout(() => reject(error), 1500);
+                    });
+                });
+            }
         };
         
         // Main scene initialization function
@@ -837,7 +987,30 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
                 renderer.shadowMap.enabled = true;
                 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                document.getElementById('container').appendChild(renderer.domElement);
+                
+                // Add the renderer to the container
+                const container = document.getElementById('container');
+                container.appendChild(renderer.domElement);
+                renderer.domElement.style.position = 'absolute';
+                renderer.domElement.style.zIndex = '1'; // Set lower z-index than UI
+                
+                // Make sure UI container has proper z-index and pointer events
+                document.getElementById('ui-container').style.zIndex = '10';
+                
+                // Explicitly set pointer-events for all interactive UI elements
+                const interactiveElements = [
+                    document.getElementById('interaction-panel'),
+                    document.getElementById('chat-window'),
+                    document.getElementById('chat-input'),
+                    document.getElementById('chat-send-btn'),
+                    document.getElementById('close-chat-btn'),
+                    document.getElementById('view-items-btn'),
+                    document.getElementById('close-btn')
+                ];
+                
+                interactiveElements.forEach(el => {
+                    if (el) el.style.pointerEvents = 'auto';
+                });
                 
                 // Position camera to match the screenshot - more overhead view
                 camera.position.set(5, 1.7, 15);
@@ -885,7 +1058,7 @@
                 const axesHelper = new THREE.AxesHelper(3);
                 axesHelper.position.set(5, 0.5, 5);
                 scene.add(axesHelper);
-
+                
                 // Create ground/street
                 const streetGeometry = new THREE.PlaneGeometry(50, 50);
                 const streetMaterial = new THREE.MeshStandardMaterial({ 
@@ -1365,65 +1538,175 @@
                 swordGuard.position.set(6, 1.9, 2);
                 scene.add(swordGuard);
 
+                // Initialize interactions handler
+                const gameInteractions = new GameInteractions({
+                    shopkeeper: shopkeeperGroup,
+                    scene: scene,
+                    camera: camera
+                });
+                
+                // Pass the user's address to the interactions handler
+                gameInteractions.setUserAddress(address);
+                
+                // If we already have a preloaded greeting, store it directly in the interactions class
+                if (window.preloadedShopkeeperGreeting) {
+                    console.log('Found globally preloaded greeting, preparing to use it');
+                    // No need to do anything special here, the getInitialGreeting method will check for it
+                }
+                
                 // Setup raycaster for interactions
                 const raycaster = new THREE.Raycaster();
                 const mouse = new THREE.Vector2();
                 
-                // Mouse movement handler
+                // Mouse position tracking for raycasting
                 function onMouseMove(event) {
+                    // Calculate mouse position in normalized device coordinates
+                    // (-1 to +1) for both components
                     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
                 }
                 
-                // Click handler
                 function onClick(event) {
+                    // Check if the click is on a UI element with pointer-events: auto
+                    // This prevents clicks from going through UI elements
+                    if (event.target.closest('[style*="pointer-events: auto"]')) {
+                        console.log('Click on UI element, ignoring for 3D interaction');
+                        return;
+                    }
+                    
+                    // Update mouse position on click to ensure accuracy
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+                    
+                    // Update the raycaster with the mouse position
                     raycaster.setFromCamera(mouse, camera);
+                    
+                    // Check for intersections with the scene
                     const intersects = raycaster.intersectObjects(scene.children, true);
                     
                     if (intersects.length > 0) {
+                        console.log('Hit object:', intersects[0].object.name || 'unnamed object');
+                        
                         // Check if we clicked on the shopkeeper
-                        const clickedObject = intersects[0].object;
+                        let clickedOnShopkeeper = false;
+                        let shopkeeperObject = null;
                         
-                        // Find the top-level parent
-                        let currentObj = clickedObject;
-                        while (currentObj.parent && currentObj.parent !== scene) {
-                            currentObj = currentObj.parent;
+                        // Check each intersection to see if it's part of the shopkeeper
+                        for (let i = 0; i < intersects.length; i++) {
+                            let obj = intersects[i].object;
+                            while (obj.parent && !clickedOnShopkeeper) {
+                                if (obj === shopkeeperGroup || obj.name === 'shopkeeper') {
+                                    clickedOnShopkeeper = true;
+                                    shopkeeperObject = obj;
+                                    break;
+                                }
+                                obj = obj.parent;
+                            }
+                            if (clickedOnShopkeeper) break;
                         }
                         
-                        if (currentObj === shopkeeperGroup) {
-                            // Show interaction panel
-                            toggleElement('interaction-panel', true);
+                        if (clickedOnShopkeeper) {
+                            console.log('Clicked on shopkeeper');
+                            gameInteractions.startShopkeeperInteraction();
+                            return;
                         }
+                        
+                        // Check if we clicked on an item
+                        for (let i = 0; i < intersects.length; i++) {
+                            const object = intersects[i].object;
+                            if (object.userData && object.userData.isItem) {
+                                console.log('Clicked on item:', object.userData.itemData);
+                                gameInteractions.startItemInteraction(object.userData.itemData);
+                                return;
+                            }
+                        }
+                        
+                        // If we clicked on the ground, handle ground click
+                        if (intersects[0].object.name === 'ground') {
+                            const point = intersects[0].point;
+                            gameInteractions.handleGroundClick(point);
+                        }
+                    } else {
+                        console.log('No object hit');
                     }
                 }
                 
-                // Event listeners
+                // Attach the mouse event listeners to the renderer's DOM element
+                // instead of the window to avoid conflicts
+                renderer.domElement.addEventListener('click', onClick);
                 window.addEventListener('mousemove', onMouseMove);
-                window.addEventListener('click', onClick);
                 window.addEventListener('resize', onWindowResize);
                 
-                // View items button
+                // Initialize game interactions
+                console.log('Initializing game interactions');
+                
+                // Add keyboard movement controls
+                const keyState = {};
+                
+                window.addEventListener('keydown', function(e) {
+                    // Skip if we're focused on an input field
+                    if (document.activeElement && 
+                        (document.activeElement.tagName === 'INPUT' || 
+                         document.activeElement.tagName === 'TEXTAREA')) {
+                        return;
+                    }
+                    
+                    const key = e.key.toLowerCase();
+                    keyState[key] = true;
+                });
+                
+                window.addEventListener('keyup', function(e) {
+                    const key = e.key.toLowerCase();
+                    keyState[key] = false;
+                });
+                
+                // Keyboard movement function that gets called in the animation loop
+                function handleKeyboardMovement() {
+                    // Skip if we're focused on an input field
+                    if (document.activeElement && 
+                        (document.activeElement.tagName === 'INPUT' || 
+                         document.activeElement.tagName === 'TEXTAREA')) {
+                        return;
+                    }
+                    
+                    const moveSpeed = 0.1;
+                    
+                    // Forward/backward movement
+                    if (keyState['w'] || keyState['arrowup']) {
+                        camera.position.z -= moveSpeed;
+                    }
+                    if (keyState['s'] || keyState['arrowdown']) {
+                        camera.position.z += moveSpeed;
+                    }
+                    
+                    // Left/right movement
+                    if (keyState['a'] || keyState['arrowleft']) {
+                        camera.position.x -= moveSpeed;
+                    }
+                    if (keyState['d'] || keyState['arrowright']) {
+                        camera.position.x += moveSpeed;
+                    }
+                    
+                    // Make sure camera always looks at the center of the scene
+                    camera.lookAt(5, 1.7, 5);
+                }
+                
+                // View items button - use our interaction handler
                 document.getElementById('view-items-btn').addEventListener('click', function() {
-                    toggleElement('shop-items', true);
-                    document.getElementById('dialog-text').textContent = 
-                        `You have 100 coins. What would you like to buy?`;
+                    gameInteractions.showShopItems();
                 });
                 
-                // Close interaction panel button
+                // Close interaction panel button - use our interaction handler
                 document.getElementById('close-btn').addEventListener('click', function() {
-                    toggleElement('interaction-panel', false);
-                    toggleElement('shop-items', false);
+                    gameInteractions.closeInteraction();
                 });
                 
-                // Buy buttons
+                // Buy buttons - delegate to our interaction handler
                 document.querySelectorAll('.buy-btn').forEach(button => {
                     button.addEventListener('click', function() {
                         const itemElement = this.closest('.item');
                         const itemType = itemElement.dataset.item;
-                        const itemName = itemElement.querySelector('.item-name').textContent;
-                        const itemPrice = parseInt(itemElement.querySelector('.item-price').textContent);
-                        
-                        showNotification(`Purchased ${itemName}!`);
+                        gameInteractions.buyItem(itemType);
                     });
                 });
                 
@@ -1456,6 +1739,9 @@
                     
                     // Update controls
                     controls.update();
+                    
+                    // Handle keyboard movement
+                    handleKeyboardMovement();
                     
                     // Update shopkeeper animation
                     shopkeeperTime += 0.01;
@@ -1548,26 +1834,63 @@
                 const API_URL = window.ENV?.API_URL || 'http://localhost:3001/api';
                 
                 // System prompt for the shopkeeper character is now maintained on the server
-
+                
                 // Show chat prompt with greeting
-                function showChatPrompt() {
+                async function showChatPrompt() {
                     const chatWindow = document.getElementById('chat-window');
                     chatWindow.classList.remove('hidden');
                     chatWindow.classList.add('active');
                     chatActive = true;
                     
-                    // Initialize chat with shopkeeper greeting
-                    const initialGreeting = generateShopkeeperGreeting();
-                    addMessageToChat(initialGreeting, 'shopkeeper');
+                    // Show typing indicator while we get the initial greeting
+                    const chatMessages = document.getElementById('chat-messages');
+                    const indicator = document.createElement('div');
+                    indicator.className = 'typing-indicator';
+                    indicator.id = 'typing-indicator';
+                    indicator.innerHTML = '<span></span><span></span><span></span>';
+                    chatMessages.appendChild(indicator);
                     
-                    // Add initial message to conversation history
-                    conversationHistory.push({
-                        role: "assistant", 
-                        content: initialGreeting
-                    });
+                    try {
+                        // Get personalized greeting from API
+                        const initialGreeting = await gameInteractions.getInitialGreeting();
+                        
+                        // Remove typing indicator
+                        const typingIndicator = document.getElementById('typing-indicator');
+                        if (typingIndicator) {
+                            typingIndicator.remove();
+                        }
+                        
+                        // Add greeting to chat
+                        addMessageToChat(initialGreeting, 'shopkeeper');
+                        
+                        // Add initial message to conversation history
+                        conversationHistory.push({
+                            role: "assistant", 
+                            content: initialGreeting
+                        });
+                    } catch (error) {
+                        console.error('Error getting initial greeting:', error);
+                        
+                        // Remove typing indicator
+                        const typingIndicator = document.getElementById('typing-indicator');
+                        if (typingIndicator) {
+                            typingIndicator.remove();
+                        }
+                        
+                        // Fallback to local greeting generation
+                        const fallbackGreeting = generateShopkeeperGreeting();
+                        addMessageToChat(fallbackGreeting, 'shopkeeper');
+                        
+                        // Add fallback greeting to conversation history
+                        conversationHistory.push({
+                            role: "assistant", 
+                            content: fallbackGreeting
+                        });
+                    }
                 }
                 
                 // Generate a personalized greeting based on user's wallet address
+                // This is now just a fallback in case the API call fails
                 function generateShopkeeperGreeting() {
                     const namePrefix = address.toLowerCase().endsWith('.eth') 
                         ? address.split('.')[0] 
@@ -1748,11 +2071,10 @@
                     }, 300);
                 });
                 
-                // Initialize chat system
+                // Initialize chat system with access to the user's address
                 setupChatInputHandlers();
                 
-                console.log('Starting animation loop');
-                // Start animation loop
+                // Start the animation loop
                 animate();
                 
                 // Show success message
