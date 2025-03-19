@@ -384,7 +384,7 @@
             position: absolute;
             bottom: 20px;
             right: 20px;
-            width: 350px;
+            width: 400px; /* Increased from 350px */
             background-color: rgba(51, 25, 0, 0.9);
             color: #FFD700;
             border-radius: 10px;
@@ -394,7 +394,8 @@
             transform: translateY(20px);
             opacity: 0;
             overflow: hidden;
-            max-height: 400px;
+            max-height: 85vh; /* Use viewport height instead of fixed pixels - 85% of viewport height */
+            height: 85vh; /* Set a fixed height to fill most of the screen */
             display: flex;
             flex-direction: column;
             z-index: 100; /* Ensure it's above other elements */
@@ -416,12 +417,16 @@
         
         #chat-messages {
             padding: 10px;
-            height: 200px;
+            height: calc(85vh - 120px); /* Calculate height based on viewport height minus space for header and input */
             overflow-y: scroll; /* Change from auto to scroll to always show scrollbar */
             display: flex;
             flex-direction: column;
-            pointer-events: auto; /* Explicitly enable pointer events for scrolling */
+            pointer-events: all !important; /* Use all instead of auto and make it !important */
             margin-right: 2px; /* Add a small margin to prevent content touching scrollbar */
+            -webkit-user-select: text; /* Enable text selection */
+            user-select: text;
+            z-index: 101; /* Higher than chat-window */
+            flex-grow: 1; /* Allow it to grow to fill available space */
         }
         
         /* Custom scrollbar styling */
@@ -2127,11 +2132,25 @@
                         this.focus();
                     });
                     
-                    // Add wheel event listener to prevent scroll events from propagating 
-                    // to the 3D scene when scrolling chat messages
+                    // Improved scrolling for chat messages
                     chatMessages.addEventListener('wheel', function(event) {
                         event.stopPropagation();
-                    });
+                        console.log('Wheel event in chat messages');
+                    }, { passive: false });
+                    
+                    // Ensure mouse events on chat messages don't affect the 3D scene
+                    chatMessages.addEventListener('mousedown', function(event) {
+                        event.stopPropagation();
+                        console.log('Mouse down in chat messages');
+                    }, true);
+                    
+                    chatMessages.addEventListener('mousemove', function(event) {
+                        event.stopPropagation();
+                    }, true);
+                    
+                    chatMessages.addEventListener('mouseup', function(event) {
+                        event.stopPropagation();
+                    }, true);
                     
                     // Send message on button click
                     sendButton.addEventListener('click', function(event) {
