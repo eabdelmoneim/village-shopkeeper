@@ -861,6 +861,14 @@
                         reject(new Error('API request timed out after 2 minutes'));
                     }, 120000);
                     
+                    // Cleanup function to ensure timeout is always cleared
+                    const cleanup = () => {
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                            timeoutId = null;
+                        }
+                    };
+                    
                     // Make the API call
                     fetch(`${API_URL}/chat`, {
                         method: 'POST',
@@ -870,15 +878,14 @@
                         body: JSON.stringify(payload)
                     })
                     .then(response => {
-                        // Clear the timeout since we got a response
-                        clearTimeout(timeoutId);
-                        
                         if (!response.ok) {
                             throw new Error(`API Error: ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
+                        cleanup(); // Only clear timeout on successful response
+                        
                         // Store the preloaded greeting in a global variable
                         window.preloadedShopkeeperGreeting = data.response;
                         console.log('Initial greeting preloaded successfully:', window.preloadedShopkeeperGreeting);
@@ -890,9 +897,6 @@
                         setTimeout(resolve, 500);
                     })
                     .catch(error => {
-                        // Clear the timeout if there was an error
-                        clearTimeout(timeoutId);
-                        
                         console.error('Error preloading initial greeting:', error);
                         document.getElementById('loading-message').textContent = 
                             "Failed to connect to shopkeeper. Continuing anyway...";
