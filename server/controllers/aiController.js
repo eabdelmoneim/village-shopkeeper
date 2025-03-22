@@ -75,7 +75,7 @@ exports.getChatResponse = async (messages, customSystemPrompt = null, userAddres
     if (userAddress) {
       systemPrompt = systemPrompt.replace(/{{address}}/g, userAddress);
       console.log(`Injected user address (${userAddress}...) into system prompt`);
-      console.log(systemPrompt);
+      //console.log(systemPrompt);
     } else {
       // If no address is provided, replace with generic placeholder
       systemPrompt = systemPrompt.replace(/{{address}}/g, 'unknown');
@@ -94,6 +94,9 @@ exports.getChatResponse = async (messages, customSystemPrompt = null, userAddres
       hasUserAddress: !!userAddress
     });
     
+    // Start timing the API call
+    const startTime = Date.now();
+    
     // Create the chat completion request to OpenAI
     const response = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
@@ -101,6 +104,12 @@ exports.getChatResponse = async (messages, customSystemPrompt = null, userAddres
       // max_tokens: 1000,
       // temperature: 0.7
     });
+    
+    // Calculate and log the time taken
+    const endTime = Date.now();
+    const timeTaken = (endTime - startTime) / 1000; // Convert to seconds
+    console.log(`Chat completion API call took ${timeTaken.toFixed(2)} seconds`);
+    
     console.log('response', response.choices[0].message.content);
 
     // Extract and return just the text content from OpenAI's response
