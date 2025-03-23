@@ -1698,6 +1698,48 @@
                             sendUserMessage();
                         }
                     });
+
+                    // Add Escape key handler to close chat window
+                    window.addEventListener('keydown', function(event) {
+                        if (event.key === 'Escape' && chatWindow.classList.contains('active')) {
+                            console.log('Escape key pressed - closing chat window');
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            chatWindow.classList.remove('active');
+                            setTimeout(() => {
+                                chatWindow.classList.add('hidden');
+                                chatActive = false;
+                                // Re-enable keyboard controls by dispatching a chat state change event
+                                window.dispatchEvent(new CustomEvent('chatStateChanged', { 
+                                    detail: { isOpen: false } 
+                                }));
+                            }, 300);
+                        }
+                    });
+
+                    // Add click handler to close chat window when clicking outside
+                    document.addEventListener('click', function(event) {
+                        // Check if the click was outside the chat window and not on the shopkeeper
+                        const isClickOutsideChat = !chatWindow.contains(event.target);
+                        const isClickOnShopkeeper = event.target.closest('#shopkeeper');
+                        
+                        if (isClickOutsideChat && !isClickOnShopkeeper && chatWindow.classList.contains('active')) {
+                            console.log('Click outside chat window - closing chat');
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            chatWindow.classList.remove('active');
+                            setTimeout(() => {
+                                chatWindow.classList.add('hidden');
+                                chatActive = false;
+                                // Re-enable keyboard controls by dispatching a chat state change event
+                                window.dispatchEvent(new CustomEvent('chatStateChanged', { 
+                                    detail: { isOpen: false } 
+                                }));
+                            }, 300);
+                        }
+                    });
                     
                     function sendUserMessage() {
                         if (isWaitingForResponse) return;
@@ -1738,6 +1780,10 @@
                             setTimeout(() => {
                                 chatWindow.classList.add('hidden');
                                 chatActive = false;
+                                // Re-enable keyboard controls by dispatching a chat state change event
+                                window.dispatchEvent(new CustomEvent('chatStateChanged', { 
+                                    detail: { isOpen: false } 
+                                }));
                             }, 300);
                         });
                     }

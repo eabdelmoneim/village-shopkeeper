@@ -1,16 +1,40 @@
-# Village Shopkeeper with OpenAI Integration
+# Village Shopkeeper with Nebula AI Integration
 
-An interactive 3D marketplace scene featuring a Turkish bazaar shopkeeper powered by OpenAI.
+An example interactive three.js 3D marketplace scene featuring a Turkish bazaar shopkeeper powered by [thirdweb Nebula AI](https://portal.thirdweb.com/nebula).
 
-## Features
+## Scene Flow & Features
 
-- 3D medieval village scene with a potion shop
-- Interactive shopkeeper character with dialog
-- Knight player character that can move around the scene
-- Colorful potion bottles on display shelves
-- Sword for sale
-- Magic crystal with glowing effects
-- Buy and sell system with currency
+1. **Welcome Screen**
+   - Users enter their ENS name or Ethereum wallet address
+   - The system preloads the initial greeting while preparing the 3D scene
+
+2. **3D Medieval Village Scene**
+   - Immersive marketplace environment with a potion shop
+   - Interactive shopkeeper character with natural dialog
+   - Knight player character that can move around freely
+   - Colorful potion bottles on display shelves
+   - Magic crystal with glowing effects
+
+3. **Dynamic Sword Pricing System**
+   - Powered by a sophisticated SHOPKEEPER_SYSTEM_PROMPT in `server/controllers/aiController.js` that defines the shopkeeper's personality and pricing rules
+   - The shopkeeper uses Nebula AI via the [OpenAI chat completions API](https://portal.thirdweb.com/nebula/plugins/openai#chat-completions-api) to check the user's ERC20 token balance on contract 0x4B534D47032B356DBe5FF6F64f339B4b28A4aAC7 on Sepolia network
+   - For users with >100k tokens: Starting price of 75 gold
+   - For users with ≤100k tokens: Starting price of 25 gold
+   - The shopkeeper maintains character by never revealing the connection between token balance and pricing
+   - Other items maintain fixed prices regardless of token balance
+   - The system prompt ensures consistent character behavior and strict adherence to pricing rules
+
+4. **Interactive Negotiation**
+   - Natural conversation flow with the Turkish bazaar merchant
+   - Real-time token balance checks during price negotiations
+   - Shopkeeper maintains consistent character and pricing rules
+   - Users can haggle, ask about items, or inquire about the sword's history
+
+5. **Buy and Sell System**
+   - Currency-based trading system
+   - Dynamic pricing based on user's token holdings
+   - Multiple items available for purchase
+   - Natural negotiation flow with the shopkeeper
 
 ## Updated Architecture
 
@@ -61,8 +85,8 @@ The project uses a single `.env` file for both server and client configuration:
    # OpenAI API key
    THIRDWEB_API_KEY=your_api_key_here
    
-   # OpenAI API configuration
-   OPENAI_MODEL=gpt-4-1106-preview
+   # OpenAI API configuration for using Nebula from thirdweb
+   OPENAI_MODEL=t0
    OPENAI_BASE_URL=https://nebula-api.thirdweb.com
    
    # Server configuration
@@ -72,7 +96,11 @@ The project uses a single `.env` file for both server and client configuration:
    # CLIENT_API_URL=http://your-custom-api-url/api
    ```
 
-### 4. Running the Application
+### 4. Claiming Tokens for Testing
+
+To claim Gold erc20 tokens for testing with your wallet, you can claim directly from the [contract page](https://thirdweb.com/sepolia/0x4B534D47032B356DBe5FF6F64f339B4b28A4aAC7/tokens) on the thirdweb Dashboard 
+
+### 5. Running the Application
 
 Start both the client and server with a single command:
 
@@ -114,28 +142,44 @@ If the OpenAI API isn't configured correctly or experiences an error, the applic
 ## Controls
 
 - **Movement**: WASD or Arrow Keys (in full version)
-- **Interact**: Click on objects or characters
-- **Camera**: Click and drag to rotate, scroll to zoom
 
 ## Project Structure
 
 ```
 village-shopkeeper/
-├── index.html              # Main application (self-contained)
+├── index.html              # Main application entry point
 ├── test.html               # Simplified test version
 ├── .env                    # Environment variables for both client and server
 ├── generate-env-config.js  # Script to generate client-side config from .env
 ├── env-config.js           # Auto-generated client-side config (gitignored)
 ├── styles/                 # CSS and styling
-├── assets/                 # For future textures/models
-├── node_modules/           # Dependencies
-├── package.json            # Project configuration
+│   └── styles.css         # Main stylesheet
+├── assets/                 # 3D models and textures
+│   ├── models/            # 3D model files
+│   └── textures/          # Texture files
+├── js/                     # JavaScript source files
+│   ├── main.js            # Main application logic
+│   ├── init.js            # Initialization code
+│   ├── utils/             # Utility functions
+│   │   ├── materials.js   # Three.js material utilities
+│   │   └── math.js        # Math helper functions
+│   ├── scene/             # Scene management
+│   │   └── scene.js       # Scene setup and management
+│   ├── controls/          # Input controls
+│   │   └── keyboard.js    # Keyboard input handling
+│   └── chat/              # Chat system
+│       └── chat.js        # Chat interface and logic
 ├── server/                 # Backend API server
-│   ├── server.js           # Express server setup
-│   ├── controllers/        # API logic
-│   ├── routes/             # API routes
-├── start-dev.sh            # Development startup script
-└── README.md               # This file
+│   ├── server.js          # Express server setup
+│   ├── controllers/       # API logic
+│   │   └── aiController.js # AI interaction handling
+│   ├── routes/            # API routes
+│   │   └── chat.js        # Chat API endpoints
+│   └── scripts/           # Server utilities
+├── node_modules/          # Dependencies
+├── package.json           # Project configuration
+├── start-dev.sh           # Development startup script
+└── README.md              # This file
 ```
 
 ## Troubleshooting
